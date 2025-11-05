@@ -4,7 +4,7 @@ set -e
 # Simulate auto-rightsizing changes using custom field manager
 # This script demonstrates how your controller would modify HPA and ScaledObject resources
 
-FIELD_MANAGER="affirm-rightsizing-controller"
+FIELD_MANAGER="komodor-rightsizing-controller"
 
 echo "=========================================="
 echo "Simulating Auto-Rightsizing Controller"
@@ -81,7 +81,7 @@ echo ""
 echo "Checking ArgoCD Application sync status (via kubectl)..."
 echo ""
 
-for app in deployment-hpa rollout-hpa deployment-scaledobject deployment-hpa-container-thresholds; do
+for app in deployment-hpa; do  # Add more apps as you deploy them: rollout-hpa deployment-scaledobject deployment-hpa-container-thresholds
   # Get sync and health status
   SYNC_STATUS=$(kubectl get application $app -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "NOT_FOUND")
   HEALTH_STATUS=$(kubectl get application $app -n argocd -o jsonpath='{.status.health.status}' 2>/dev/null || echo "Unknown")

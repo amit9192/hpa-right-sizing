@@ -17,12 +17,12 @@ When you set a custom field manager name:
 ```bash
 # Apply a file with custom field manager
 kubectl apply --server-side \
-  --field-manager=affirm-rightsizing-controller \
+  --field-manager=komodor-rightsizing-controller \
   -f manifests/01-deployment-hpa/hpa.yaml
 
 # Force overwrite conflicts
 kubectl apply --server-side \
-  --field-manager=affirm-rightsizing-controller \
+  --field-manager=komodor-rightsizing-controller \
   --force-conflicts \
   -f manifests/01-deployment-hpa/hpa.yaml
 ```
@@ -34,7 +34,7 @@ kubectl apply --server-side \
 kubectl patch hpa test-app-hpa -n deployment-hpa \
   --type=json \
   --patch '[{"op":"replace","path":"/spec/metrics/0/resource/target/averageUtilization","value":65}]' \
-  --field-manager=affirm-rightsizing-controller
+  --field-manager=komodor-rightsizing-controller
 
 # Change multiple values
 kubectl patch hpa test-app-hpa -n deployment-hpa \
@@ -44,7 +44,7 @@ kubectl patch hpa test-app-hpa -n deployment-hpa \
     {"op":"replace","path":"/spec/minReplicas","value":3},
     {"op":"replace","path":"/spec/maxReplicas","value":15}
   ]' \
-  --field-manager=affirm-rightsizing-controller
+  --field-manager=komodor-rightsizing-controller
 ```
 
 ### 3. Strategic Merge Patch with Field Manager
@@ -54,7 +54,7 @@ kubectl patch hpa test-app-hpa -n deployment-hpa \
 kubectl patch hpa test-app-hpa -n deployment-hpa \
   --type=strategic \
   --patch '{"spec":{"maxReplicas":15}}' \
-  --field-manager=affirm-rightsizing-controller
+  --field-manager=komodor-rightsizing-controller
 
 # Update multiple fields
 kubectl patch hpa test-app-hpa -n deployment-hpa \
@@ -75,7 +75,7 @@ kubectl patch hpa test-app-hpa -n deployment-hpa \
       }]
     }
   }' \
-  --field-manager=affirm-rightsizing-controller
+  --field-manager=komodor-rightsizing-controller
 ```
 
 ### 4. Merge Patch with Field Manager
@@ -84,7 +84,7 @@ kubectl patch hpa test-app-hpa -n deployment-hpa \
 kubectl patch hpa test-app-hpa -n deployment-hpa \
   --type=merge \
   --patch '{"spec":{"maxReplicas":15}}' \
-  --field-manager=affirm-rightsizing-controller
+  --field-manager=komodor-rightsizing-controller
 ```
 
 ### 5. ScaledObject Examples
@@ -94,7 +94,7 @@ kubectl patch hpa test-app-hpa -n deployment-hpa \
 kubectl patch scaledobject test-app-scaledobject -n deployment-scaledobject \
   --type=json \
   --patch '[{"op":"replace","path":"/spec/triggers/0/metadata/value","value":"65"}]' \
-  --field-manager=affirm-rightsizing-controller
+  --field-manager=komodor-rightsizing-controller
 
 # Update min/max replicas
 kubectl patch scaledobject test-app-scaledobject -n deployment-scaledobject \
@@ -103,7 +103,7 @@ kubectl patch scaledobject test-app-scaledobject -n deployment-scaledobject \
     {"op":"replace","path":"/spec/minReplicaCount","value":3},
     {"op":"replace","path":"/spec/maxReplicaCount","value":15}
   ]' \
-  --field-manager=affirm-rightsizing-controller
+  --field-manager=komodor-rightsizing-controller
 ```
 
 ### 6. Container-Specific HPA Thresholds
@@ -117,7 +117,7 @@ kubectl patch hpa test-app-hpa -n deployment-hpa-container-thresholds \
     "path":"/spec/metrics/0/containerResource/target/averageUtilization",
     "value":65
   }]' \
-  --field-manager=affirm-rightsizing-controller
+  --field-manager=komodor-rightsizing-controller
 
 # Update memory threshold for sidecar container
 kubectl patch hpa test-app-hpa -n deployment-hpa-container-thresholds \
@@ -127,7 +127,7 @@ kubectl patch hpa test-app-hpa -n deployment-hpa-container-thresholds \
     "path":"/spec/metrics/3/containerResource/target/averageUtilization",
     "value":70
   }]' \
-  --field-manager=affirm-rightsizing-controller
+  --field-manager=komodor-rightsizing-controller
 ```
 
 ## Verifying Field Manager Changes
@@ -140,7 +140,7 @@ kubectl get hpa test-app-hpa -n deployment-hpa -o json | \
   jq -r '.metadata.managedFields[].manager' | sort -u
 
 # Output example:
-# affirm-rightsizing-controller
+# komodor-rightsizing-controller
 # argocd-controller
 # kube-controller-manager
 # kubectl-client-side-apply
@@ -151,11 +151,11 @@ kubectl get hpa test-app-hpa -n deployment-hpa -o json | \
 ```bash
 # View all fields managed by your controller
 kubectl get hpa test-app-hpa -n deployment-hpa -o json | \
-  jq '.metadata.managedFields[] | select(.manager=="affirm-rightsizing-controller")'
+  jq '.metadata.managedFields[] | select(.manager=="komodor-rightsizing-controller")'
 
 # See just the fields (compact view)
 kubectl get hpa test-app-hpa -n deployment-hpa -o json | \
-  jq '.metadata.managedFields[] | select(.manager=="affirm-rightsizing-controller") | .fieldsV1'
+  jq '.metadata.managedFields[] | select(.manager=="komodor-rightsizing-controller") | .fieldsV1'
 ```
 
 ### Compare Field Managers Across Resources
@@ -168,7 +168,7 @@ kubectl get hpa --all-namespaces -o json | \
 
 # Filter for your controller only
 kubectl get hpa --all-namespaces -o json | \
-  jq -r '.items[] | select(.metadata.managedFields[].manager == "affirm-rightsizing-controller") | "\(.metadata.namespace)/\(.metadata.name)"'
+  jq -r '.items[] | select(.metadata.managedFields[].manager == "komodor-rightsizing-controller") | "\(.metadata.namespace)/\(.metadata.name)"'
 ```
 
 ## Testing Workflow
@@ -184,7 +184,7 @@ kubectl get hpa test-app-hpa -n deployment-hpa -o yaml
 kubectl patch hpa test-app-hpa -n deployment-hpa \
   --type=json \
   --patch '[{"op":"replace","path":"/spec/metrics/0/resource/target/averageUtilization","value":65}]' \
-  --field-manager=affirm-rightsizing-controller
+  --field-manager=komodor-rightsizing-controller
 
 # 3. Verify the field manager is recorded
 kubectl get hpa test-app-hpa -n deployment-hpa -o json | \
@@ -234,7 +234,7 @@ NEW_CPU=$((CURRENT_CPU - 5))
 kubectl patch hpa test-app-hpa -n deployment-hpa \
   --type=json \
   --patch "[{\"op\":\"replace\",\"path\":\"/spec/metrics/0/resource/target/averageUtilization\",\"value\":$NEW_CPU}]" \
-  --field-manager=affirm-rightsizing-controller
+  --field-manager=komodor-rightsizing-controller
 ```
 
 ### Pattern 2: Conditional Update
@@ -249,7 +249,7 @@ if [ $CURRENT_CPU -gt 70 ]; then
   kubectl patch hpa test-app-hpa -n deployment-hpa \
     --type=json \
     --patch '[{"op":"replace","path":"/spec/metrics/0/resource/target/averageUtilization","value":65}]' \
-    --field-manager=affirm-rightsizing-controller
+    --field-manager=komodor-rightsizing-controller
 fi
 ```
 
@@ -262,7 +262,7 @@ for ns in deployment-hpa rollout-hpa deployment-hpa-container-thresholds; do
   kubectl patch hpa test-app-hpa -n $ns \
     --type=json \
     --patch '[{"op":"replace","path":"/spec/metrics/0/resource/target/averageUtilization","value":65}]' \
-    --field-manager=affirm-rightsizing-controller
+    --field-manager=komodor-rightsizing-controller
 done
 ```
 
@@ -301,7 +301,7 @@ kubectl get hpa test-app-hpa -n deployment-hpa -o json | \
 **Solution:** Use `--force-conflicts`:
 ```bash
 kubectl apply --server-side \
-  --field-manager=affirm-rightsizing-controller \
+  --field-manager=komodor-rightsizing-controller \
   --force-conflicts \
   -f resource.yaml
 ```
@@ -335,5 +335,5 @@ argocd app diff deployment-hpa
 
 - Field manager flag: `--field-manager=<name>`
 - Works with: `kubectl apply`, `kubectl patch`, `kubectl create`, `kubectl replace`
-- Best practice: Use a consistent, descriptive name (e.g., `affirm-rightsizing-controller`)
+- Best practice: Use a consistent, descriptive name (e.g., `komodor-rightsizing-controller`)
 

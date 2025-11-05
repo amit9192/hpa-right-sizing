@@ -16,7 +16,7 @@ data:
     - keda-operator              # KEDA operator for ScaledObjects
     - kubectl-client-side-apply  # Manual kubectl apply changes
     - kubectl                    # Manual kubectl changes
-    - affirm-rightsizing-controller  # Your auto-rightsizing controller
+    - komodor-rightsizing-controller  # Your auto-rightsizing controller
     
   resource.customizations.ignoreDifferences.autoscaling_HorizontalPodAutoscaler: |
     # HPA v2 API - Ignore all metric-related fields
@@ -29,6 +29,7 @@ data:
     # Also ignore status fields that change frequently
     managedFieldsManagers:
     - kube-controller-manager
+    - komodor-rightsizing-controller
     
   resource.customizations.ignoreDifferences.keda.sh_ScaledObject: |
     # KEDA ScaledObject - Ignore trigger-related fields
@@ -43,6 +44,7 @@ data:
     # Ignore KEDA-managed fields
     managedFieldsManagers:
     - keda-operator
+    - komodor-rightsizing-controller
     
   # Optional: Configure health assessment for custom resources
   resource.customizations.health.keda.sh_ScaledObject: |
