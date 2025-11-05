@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rollout-hpa-container-thresholds
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/amit9192/hpa-right-sizing
+    targetRevision: main
+    path: manifests/06-rollout-hpa-container-thresholds
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: rollout-hpa-container-thresholds
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+

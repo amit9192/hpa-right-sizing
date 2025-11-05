@@ -1,0 +1,30 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: test-app-scaledobject
+  namespace: deployment-scaledobject-container-thresholds
+  annotations:
+    # These annotations demonstrate container-specific thresholds for auto-rightsizing
+    rightsizing.affirm.io/nginx-cpu-target: "70"
+    rightsizing.affirm.io/nginx-memory-target: "80"
+    rightsizing.affirm.io/sidecar-cpu-target: "60"
+    rightsizing.affirm.io/sidecar-memory-target: "75"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: test-app
+  minReplicaCount: 2
+  maxReplicaCount: 10
+  triggers:
+  # Combined CPU trigger (will be adjusted by auto-rightsizing per container)
+  - type: cpu
+    metricType: Utilization
+    metadata:
+      value: "70"
+  # Combined memory trigger (will be adjusted by auto-rightsizing per container)
+  - type: memory
+    metricType: Utilization
+    metadata:
+      value: "80"
+

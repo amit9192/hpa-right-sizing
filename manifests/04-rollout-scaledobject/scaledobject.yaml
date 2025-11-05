@@ -1,0 +1,22 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: test-app-scaledobject
+  namespace: rollout-scaledobject
+spec:
+  scaleTargetRef:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    name: test-app
+  minReplicaCount: 2
+  maxReplicaCount: 10
+  triggers:
+  - type: cpu
+    metricType: Utilization
+    metadata:
+      value: "70"
+  - type: memory
+    metricType: Utilization
+    metadata:
+      value: "80"
+

@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: deployment-hpa
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/amit9192/hpa-right-sizing
+    targetRevision: main
+    path: manifests/01-deployment-hpa
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: deployment-hpa
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+

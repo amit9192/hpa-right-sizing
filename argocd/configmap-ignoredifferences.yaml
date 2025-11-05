@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # Configure ArgoCD to ignore differences in HPA and ScaledObject resources
+  # This prevents auto-rightsizing changes from causing sync drift
+  resource.customizations.ignoreDifferences.all: |
+    # Ignore changes made by these field managers across ALL resources
+    managedFieldsManagers:
+    - kube-controller-manager    # HPA controller
+    - keda-operator              # KEDA operator for ScaledObjects
+    - kubectl-client-side-apply  # Manual kubectl apply changes
+    - kubectl                    # Manual kubectl changes
+    - affirm-rightsizing-controller  # Your auto-rightsizing controller
+    
+  resource.customizations.ignoreDifferences.autoscaling_HorizontalPodAutoscaler: |
+    # HPA v2 API - Ignore all metric-related fields
+    jsonPointers:
+    - /spec/metrics
+    - /spec/minReplicas
+    - /spec/maxReplicas
+    - /spec/behavior
+    
+    # Also ignore status fields that change frequently
+    managedFieldsManagers:
+    - kube-controller-manager
+    
+  resource.customizations.ignoreDifferences.keda.sh_ScaledObject: |
+    # KEDA ScaledObject - Ignore trigger-related fields
+    jsonPointers:
+    - /spec/triggers
+    - /spec/minReplicaCount
+    - /spec/maxReplicaCount
+    - /spec/pollingInterval
+    - /spec/cooldownPeriod
+    - /spec/advanced
+    
+    # Ignore KEDA-managed fields
+    managedFieldsManagers:
+    - keda-operator
+    
+  # Optional: Configure health assessment for custom resources
+  resource.customizations.health.keda.sh_ScaledObject: |
+    hs = {}
+    if obj.status ~= nil then
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "Ready" and condition.status == "False" then
+            hs.status = "Degraded"
+            hs.message = condition.message
+            return hs
+          end
+          if condition.type == "Ready" and condition.status == "True" then
+            hs.status = "Healthy"
+            hs.message = "ScaledObject is ready"
+            return hs
+          end
+        end
+      end
+    end
+    hs.status = "Progressing"
+    hs.message = "Waiting for ScaledObject to be ready"
+    return hs
+    
+  resource.customizations.health.argoproj.io_Rollout: |
+    hs = {}
+    if obj.status ~= nil then
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "Progressing" and condition.reason == "ProgressDeadlineExceeded" then
+            hs.status = "Degraded"
+            hs.message = condition.message
+            return hs
+          end
+          if condition.type == "Progressing" and condition.status == "False" then
+            hs.status = "Degraded"
+            hs.message = condition.message
+            return hs
+          end
+          if condition.type == "Available" and condition.status == "False" then
+            hs.status = "Degraded"
+            hs.message = condition.message
+            return hs
+          end
+        end
+      end
+      if obj.status.phase ~= nil then
+        if obj.status.phase == "Degraded" then
+          hs.status = "Degraded"
+          hs.message = "Rollout is degraded"
+          return hs
+        end
+        if obj.status.phase == "Healthy" then
+          hs.status = "Healthy"
+          hs.message = "Rollout is healthy"
+          return hs
+        end
+      end
+    end
+    hs.status = "Progressing"
+    hs.message = "Waiting for rollout to complete"
+    return hs
+

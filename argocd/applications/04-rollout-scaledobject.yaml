@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rollout-scaledobject
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/amit9192/hpa-right-sizing
+    targetRevision: main
+    path: manifests/04-rollout-scaledobject
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: rollout-scaledobject
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+

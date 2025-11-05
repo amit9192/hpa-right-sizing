@@ -1,0 +1,44 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: test-app-hpa
+  namespace: deployment-hpa-container-thresholds
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: test-app
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  # Container-specific metrics for nginx container
+  - type: ContainerResource
+    containerResource:
+      name: cpu
+      container: nginx
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: ContainerResource
+    containerResource:
+      name: memory
+      container: nginx
+      target:
+        type: Utilization
+        averageUtilization: 80
+  # Container-specific metrics for sidecar container
+  - type: ContainerResource
+    containerResource:
+      name: cpu
+      container: sidecar
+      target:
+        type: Utilization
+        averageUtilization: 60
+  - type: ContainerResource
+    containerResource:
+      name: memory
+      container: sidecar
+      target:
+        type: Utilization
+        averageUtilization: 75
+
