@@ -81,15 +81,29 @@ echo ""
 echo "Checking ArgoCD sync status..."
 echo ""
 
+# Check if argocd CLI is available
+if argocd app list &>/dev/null; then
+  USE_CLI=true
+  echo "(Using argocd CLI)"
+else
+  USE_CLI=false
+  echo "(Using kubectl - argocd CLI not available)"
+fi
+echo ""
+
 for app in deployment-hpa rollout-hpa deployment-scaledobject deployment-hpa-container-thresholds; do
-  STATUS=$(argocd app get $app -o json 2>/dev/null | jq -r '.status.sync.status' || echo "UNKNOWN")
+  if [ "$USE_CLI" = "true" ]; then
+    STATUS=$(argocd app get $app -o json 2>/dev/null | jq -r '.status.sync.status' || echo "UNKNOWN")
+  else
+    STATUS=$(kubectl get application $app -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "UNKNOWN")
+  fi
   
   if [ "$STATUS" = "Synced" ]; then
     echo "✅ $app: $STATUS"
   elif [ "$STATUS" = "OutOfSync" ]; then
     echo "❌ $app: $STATUS (drift detected!)"
   else
-    echo "⚠️  $app: Could not check (argocd CLI may not be available)"
+    echo "⚠️  $app: $STATUS"
   fi
 done
 

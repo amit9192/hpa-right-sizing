@@ -4,7 +4,7 @@ set -e
 # Test script for custom field manager with ArgoCD ignoreDifferences
 # This simulates what your auto-rightsizing controller will do
 
-FIELD_MANAGER="affirm-rightsizing-controller"
+FIELD_MANAGER="komodor-rightsizing-controller"
 NAMESPACE="deployment-hpa"
 HPA_NAME="test-app-hpa"
 
@@ -15,7 +15,15 @@ echo ""
 
 # Check current ArgoCD sync status
 echo "1. Checking initial ArgoCD sync status..."
-argocd app get deployment-hpa --show-params | grep "Sync Status" || echo "Note: Install argocd CLI if not available"
+if argocd app get deployment-hpa &>/dev/null; then
+  argocd app get deployment-hpa --show-params | grep "Sync Status"
+else
+  echo "   Using kubectl (argocd CLI not available/logged in):"
+  SYNC_STATUS=$(kubectl get application deployment-hpa -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "App not found")
+  HEALTH_STATUS=$(kubectl get application deployment-hpa -n argocd -o jsonpath='{.status.health.status}' 2>/dev/null || echo "Unknown")
+  echo "   Sync Status: $SYNC_STATUS"
+  echo "   Health Status: $HEALTH_STATUS"
+fi
 echo ""
 
 # Show current HPA configuration
@@ -58,7 +66,16 @@ echo ""
 
 # Check ArgoCD sync status after change
 echo "8. Checking ArgoCD sync status after modification..."
-SYNC_STATUS=$(argocd app get deployment-hpa -o json 2>/dev/null | jq -r '.status.sync.status' || echo "UNKNOWN")
+
+# Try argocd CLI first, fall back to kubectl
+if argocd app get deployment-hpa &>/dev/null; then
+  SYNC_STATUS=$(argocd app get deployment-hpa -o json 2>/dev/null | jq -r '.status.sync.status' || echo "UNKNOWN")
+  USE_CLI=true
+else
+  SYNC_STATUS=$(kubectl get application deployment-hpa -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "UNKNOWN")
+  USE_CLI=false
+fi
+
 echo "   Sync Status: $SYNC_STATUS"
 
 if [ "$SYNC_STATUS" = "Synced" ]; then
@@ -71,16 +88,25 @@ elif [ "$SYNC_STATUS" = "OutOfSync" ]; then
   echo "   2. Restart ArgoCD controllers:"
   echo "      kubectl rollout restart deployment argocd-application-controller -n argocd"
   echo "   3. Check ArgoCD diff:"
-  echo "      argocd app diff deployment-hpa"
+  if [ "$USE_CLI" = "true" ]; then
+    echo "      argocd app diff deployment-hpa"
+  else
+    echo "      kubectl get application deployment-hpa -n argocd -o yaml"
+  fi
 else
-  echo "   ⚠️  Could not determine sync status (argocd CLI may not be installed)"
+  echo "   ⚠️  Could not determine sync status"
 fi
 echo ""
 
 # Show the actual diff if out of sync
 if [ "$SYNC_STATUS" = "OutOfSync" ]; then
   echo "9. Showing diff detected by ArgoCD:"
-  argocd app diff deployment-hpa 2>/dev/null || echo "   (argocd CLI not available)"
+  if [ "$USE_CLI" = "true" ]; then
+    argocd app diff deployment-hpa 2>/dev/null || echo "   (Could not get diff)"
+  else
+    echo "   Using kubectl:"
+    kubectl get application deployment-hpa -n argocd -o jsonpath='{.status.operationState.syncResult.resources}' | jq '.' 2>/dev/null || echo "   (No diff details available via kubectl)"
+  fi
 fi
 
 echo ""
