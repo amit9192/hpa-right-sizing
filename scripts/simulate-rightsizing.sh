@@ -77,33 +77,23 @@ echo "All changes applied successfully!"
 echo "=========================================="
 echo ""
 
-# Check ArgoCD sync status for all apps
-echo "Checking ArgoCD sync status..."
-echo ""
-
-# Check if argocd CLI is available
-if argocd app list &>/dev/null; then
-  USE_CLI=true
-  echo "(Using argocd CLI)"
-else
-  USE_CLI=false
-  echo "(Using kubectl - argocd CLI not available)"
-fi
+# Check ArgoCD sync status for all apps using kubectl
+echo "Checking ArgoCD Application sync status (via kubectl)..."
 echo ""
 
 for app in deployment-hpa rollout-hpa deployment-scaledobject deployment-hpa-container-thresholds; do
-  if [ "$USE_CLI" = "true" ]; then
-    STATUS=$(argocd app get $app -o json 2>/dev/null | jq -r '.status.sync.status' || echo "UNKNOWN")
-  else
-    STATUS=$(kubectl get application $app -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "UNKNOWN")
-  fi
+  # Get sync and health status
+  SYNC_STATUS=$(kubectl get application $app -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "NOT_FOUND")
+  HEALTH_STATUS=$(kubectl get application $app -n argocd -o jsonpath='{.status.health.status}' 2>/dev/null || echo "Unknown")
   
-  if [ "$STATUS" = "Synced" ]; then
-    echo "✅ $app: $STATUS"
-  elif [ "$STATUS" = "OutOfSync" ]; then
-    echo "❌ $app: $STATUS (drift detected!)"
+  if [ "$SYNC_STATUS" = "NOT_FOUND" ]; then
+    echo "⚠️  $app: Application not found (not deployed yet?)"
+  elif [ "$SYNC_STATUS" = "Synced" ]; then
+    echo "✅ $app: $SYNC_STATUS (Health: $HEALTH_STATUS)"
+  elif [ "$SYNC_STATUS" = "OutOfSync" ]; then
+    echo "❌ $app: $SYNC_STATUS (Health: $HEALTH_STATUS) - DRIFT DETECTED!"
   else
-    echo "⚠️  $app: $STATUS"
+    echo "⚠️  $app: $SYNC_STATUS (Health: $HEALTH_STATUS)"
   fi
 done
 

@@ -13,17 +13,12 @@ echo "Testing Custom Field Manager: $FIELD_MANAGER"
 echo "=========================================="
 echo ""
 
-# Check current ArgoCD sync status
-echo "1. Checking initial ArgoCD sync status..."
-if argocd app get deployment-hpa &>/dev/null; then
-  argocd app get deployment-hpa --show-params | grep "Sync Status"
-else
-  echo "   Using kubectl (argocd CLI not available/logged in):"
-  SYNC_STATUS=$(kubectl get application deployment-hpa -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "App not found")
-  HEALTH_STATUS=$(kubectl get application deployment-hpa -n argocd -o jsonpath='{.status.health.status}' 2>/dev/null || echo "Unknown")
-  echo "   Sync Status: $SYNC_STATUS"
-  echo "   Health Status: $HEALTH_STATUS"
-fi
+# Check current ArgoCD sync status using kubectl
+echo "1. Checking initial ArgoCD sync status (via kubectl)..."
+SYNC_STATUS=$(kubectl get application deployment-hpa -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "NOT_FOUND")
+HEALTH_STATUS=$(kubectl get application deployment-hpa -n argocd -o jsonpath='{.status.health.status}' 2>/dev/null || echo "Unknown")
+echo "   Sync Status: $SYNC_STATUS"
+echo "   Health Status: $HEALTH_STATUS"
 echo ""
 
 # Show current HPA configuration
@@ -64,19 +59,13 @@ kubectl get hpa $HPA_NAME -n $NAMESPACE -o json | \
   jq ".metadata.managedFields[] | select(.manager==\"$FIELD_MANAGER\") | .fieldsV1"
 echo ""
 
-# Check ArgoCD sync status after change
-echo "8. Checking ArgoCD sync status after modification..."
-
-# Try argocd CLI first, fall back to kubectl
-if argocd app get deployment-hpa &>/dev/null; then
-  SYNC_STATUS=$(argocd app get deployment-hpa -o json 2>/dev/null | jq -r '.status.sync.status' || echo "UNKNOWN")
-  USE_CLI=true
-else
-  SYNC_STATUS=$(kubectl get application deployment-hpa -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "UNKNOWN")
-  USE_CLI=false
-fi
+# Check ArgoCD sync status after change using kubectl
+echo "8. Checking ArgoCD sync status after modification (via kubectl)..."
+SYNC_STATUS=$(kubectl get application deployment-hpa -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "UNKNOWN")
+HEALTH_STATUS=$(kubectl get application deployment-hpa -n argocd -o jsonpath='{.status.health.status}' 2>/dev/null || echo "Unknown")
 
 echo "   Sync Status: $SYNC_STATUS"
+echo "   Health Status: $HEALTH_STATUS"
 
 if [ "$SYNC_STATUS" = "Synced" ]; then
   echo "   ✅ SUCCESS! ArgoCD still shows Synced (no drift detected)"
@@ -85,14 +74,11 @@ elif [ "$SYNC_STATUS" = "OutOfSync" ]; then
   echo ""
   echo "   Troubleshooting:"
   echo "   1. Ensure the ConfigMap has $FIELD_MANAGER in managedFieldsManagers"
-  echo "   2. Restart ArgoCD controllers:"
+  echo "   2. Check ConfigMap: kubectl get configmap argocd-cm -n argocd -o yaml | grep -A 5 managedFieldsManagers"
+  echo "   3. Restart ArgoCD controllers:"
   echo "      kubectl rollout restart deployment argocd-application-controller -n argocd"
-  echo "   3. Check ArgoCD diff:"
-  if [ "$USE_CLI" = "true" ]; then
-    echo "      argocd app diff deployment-hpa"
-  else
-    echo "      kubectl get application deployment-hpa -n argocd -o yaml"
-  fi
+  echo "   4. View application details:"
+  echo "      kubectl get application deployment-hpa -n argocd -o yaml"
 else
   echo "   ⚠️  Could not determine sync status"
 fi
@@ -100,13 +86,8 @@ echo ""
 
 # Show the actual diff if out of sync
 if [ "$SYNC_STATUS" = "OutOfSync" ]; then
-  echo "9. Showing diff detected by ArgoCD:"
-  if [ "$USE_CLI" = "true" ]; then
-    argocd app diff deployment-hpa 2>/dev/null || echo "   (Could not get diff)"
-  else
-    echo "   Using kubectl:"
-    kubectl get application deployment-hpa -n argocd -o jsonpath='{.status.operationState.syncResult.resources}' | jq '.' 2>/dev/null || echo "   (No diff details available via kubectl)"
-  fi
+  echo "9. Showing application details:"
+  kubectl get application deployment-hpa -n argocd -o jsonpath='{.status.conditions}' | jq '.' 2>/dev/null || echo "   (No details available)"
 fi
 
 echo ""
